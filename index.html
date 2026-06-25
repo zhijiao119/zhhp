@@ -1,0 +1,1891 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智慧水产养殖监控系统 · 智能评价系统</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        'bg-main': '#0B1120',
+        'bg-card': '#131D30',
+        'border-main': '#1E2D45',
+        'text-primary': '#E2E8F0',
+        'text-secondary': '#64748B',
+        'text-muted': '#94A3B8',
+        'accent-blue': '#2563EB',
+        'accent-green': '#06D6A0',
+        'accent-yellow': '#FFD166',
+        'accent-red': '#EF476F',
+        'accent-light-blue': '#60A5FA',
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0B1120; color: #E2E8F0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0B1120; }
+  ::-webkit-scrollbar-thumb { background: #1E2D45; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2D4A6F; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideDown {
+    from { opacity: 0; max-height: 0; }
+    to { opacity: 1; max-height: 100px; }
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideOutRight {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(30px); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); }
+  }
+  .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+  .animate-slide-down { animation: slideDown 0.3s ease-out forwards; }
+  .animate-slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+  .animate-slide-out-right { animation: slideOutRight 0.3s ease-out forwards; }
+  .animate-spin { animation: spin 1s linear infinite; }
+  .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+  .notification-enter { animation: slideInRight 0.3s ease-out forwards; }
+  .notification-exit { animation: slideOutRight 0.3s ease-out forwards; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-content {
+    background: #131D30; border: 1px solid #1E2D45; border-radius: 16px;
+    padding: 24px; width: 90%; max-width: 480px;
+    animation: fadeInUp 0.3s ease-out;
+  }
+
+  input, textarea, select {
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  }
+  textarea { resize: vertical; }
+
+  .grade-btn {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .grade-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+  .grade-btn.selected {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .group-btn {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .group-btn:hover {
+    border-color: #2563EB;
+  }
+  .group-btn.selected {
+    border-color: #2563EB;
+    background: rgba(37, 99, 235, 0.15);
+    color: #60A5FA;
+  }
+
+  .card-hover {
+    transition: all 0.2s ease;
+  }
+  .card-hover:hover {
+    border-color: #2563EB;
+    transform: translateY(-1px);
+  }
+
+  /* ==================== Mobile Responsive ==================== */
+  @media (max-width: 640px) {
+    .modal-content {
+      width: 95%;
+      padding: 16px;
+      border-radius: 12px;
+    }
+    
+    /* 表格横向滚动 */
+    .eval-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .eval-table-wrap table {
+      min-width: 500px;
+    }
+    
+    /* 按钮最小触控区域 */
+    button {
+      min-height: 40px;
+    }
+    
+    /* 等级按钮缩小 */
+    .grade-btn {
+      padding: 6px 4px !important;
+      font-size: 11px !important;
+    }
+    
+    /* 输入框触控优化 */
+    input, textarea, select {
+      font-size: 16px; /* 防止 iOS 自动缩放 */
+    }
+    
+    /* 评价意见文本域增大 */
+    textarea {
+      min-height: 100px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ==================== Constants ====================
+const DIMENSIONS = [
+  { key: 'functionality', label: '功能实现/硬件设计与搭建', weight: 0.25, desc: '功能实现' },
+  { key: 'performance', label: '性能指标/软件编程与功能', weight: 0.30, desc: '性能指标' },
+  { key: 'experience', label: '用户体验/系统集成与调试', weight: 0.25, desc: '用户体验' },
+  { key: 'innovation', label: '创新性/创新与规范', weight: 0.20, desc: '创新性' }
+];
+
+const GRADES = [
+  { label: '优秀', score: 100, color: '#06D6A0', bg: 'rgba(6,214,160,0.15)' },
+  { label: '良好', score: 85, color: '#2563EB', bg: 'rgba(37,99,235,0.15)' },
+  { label: '中等', score: 70, color: '#60A5FA', bg: 'rgba(96,165,250,0.15)' },
+  { label: '及格', score: 60, color: '#FFD166', bg: 'rgba(255,209,102,0.15)' },
+  { label: '不及格', score: 50, color: '#EF476F', bg: 'rgba(239,71,111,0.15)' }
+];
+
+// ==================== Gitee Cloud API ====================
+const GITEE_API = 'https://gitee.com/api/v5';
+const DEFAULT_TOKEN = 'ae9ab007d0ad04dcc548b2065bc8c40d';
+let cloudToken = DEFAULT_TOKEN;
+let cloudActive = null; // null=未检测, true=在线, false=离线
+const GIST_MAP_KEY = 'ev8-gist-map'; // localStorage中存储 classroomId -> gistId 映射
+const STATE_KEY = 'smart_eval_state';
+
+// 获取 gist 映射表
+function getGistMap() {
+  try { return JSON.parse(localStorage.getItem(GIST_MAP_KEY) || '{}'); } catch { return {}; }
+}
+function saveGistMap(map) {
+  localStorage.setItem(GIST_MAP_KEY, JSON.stringify(map));
+}
+function getGistId(classroomId) {
+  return getGistMap()[classroomId] || null;
+}
+function setGistId(classroomId, gistId) {
+  const map = getGistMap();
+  map[classroomId] = gistId;
+  saveGistMap(map);
+}
+
+// 测试云端连接
+async function checkCloudConnection() {
+  if (!cloudToken) return false;
+  try {
+    const resp = await fetch(`${GITEE_API}/user?access_token=${cloudToken}`, { signal: AbortSignal.timeout(8000) });
+    return resp.ok;
+  } catch { return false; }
+}
+
+// 确保云端已激活（带缓存）
+async function ensureCloud() {
+  if (cloudActive === null) {
+    cloudActive = await checkCloudConnection();
+    console.log(cloudActive ? '[DB] Gitee cloud active' : '[DB] Local mode');
+  }
+  return cloudActive;
+}
+
+// 刷新云端状态
+async function refreshCloud() {
+  cloudActive = null;
+  await ensureCloud();
+}
+
+function isCloudMode() {
+  return cloudActive === true;
+}
+
+// 创建 Gist（用于新建课堂）
+async function createGist(description, fileName, content) {
+  const resp = await fetch(`${GITEE_API}/gists?access_token=${cloudToken}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description: description,
+      public: true,
+      files: { [fileName]: { content: content } }
+    })
+  });
+  if (!resp.ok) throw new Error(`Create gist failed: ${resp.status}`);
+  const data = await resp.json();
+  return { id: data.id, url: data.url };
+}
+
+// 获取 Gist 内容
+async function getGist(gistId) {
+  const resp = await fetch(`${GITEE_API}/gists/${gistId}?access_token=${cloudToken}`);
+  if (!resp.ok) throw new Error(`Get gist failed: ${resp.status}`);
+  const files = (await resp.json()).files || {};
+  const file = Object.values(files)[0];
+  if (file?.content) {
+    try { return JSON.parse(file.content); } catch { return null; }
+  }
+  return null;
+}
+
+// 更新 Gist
+async function updateGist(gistId, fileName, content) {
+  const resp = await fetch(`${GITEE_API}/gists/${gistId}?access_token=${cloudToken}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files: { [fileName]: { content: content } } })
+  });
+  if (!resp.ok) throw new Error(`Update gist failed: ${resp.status}`);
+}
+
+// 删除 Gist
+async function deleteGist(gistId) {
+  const resp = await fetch(`${GITEE_API}/gists/${gistId}?access_token=${cloudToken}`, { method: 'DELETE' });
+  if (!resp.ok) throw new Error(`Delete gist failed: ${resp.status}`);
+}
+
+// 通过 gistId 获取课堂数据（学生通过分享链接使用）
+async function getClassroomByGistId(gistId) {
+  try {
+    const data = await getGist(gistId);
+    if (data) {
+      data.gistId = data.gistId || gistId;
+      return data;
+    }
+  } catch (e) {
+    console.error('[DB] Get by gistId failed:', e);
+    cloudActive = false;
+  }
+  return null;
+}
+
+// ==================== Cloud Data Operations ====================
+
+// 保存课堂到云端
+async function saveClassroomToCloud(classroom) {
+  const fileName = `classroom-${classroom.id}.json`;
+  const content = JSON.stringify(classroom, null, 2);
+
+  if (await ensureCloud()) {
+    try {
+      const existingGistId = getGistId(classroom.id) || classroom.gistId;
+      if (existingGistId) {
+        await updateGist(existingGistId, fileName, content);
+        if (!getGistId(classroom.id)) setGistId(classroom.id, existingGistId);
+      } else {
+        const gist = await createGist(classroom.topicName || '课堂', fileName, content);
+        setGistId(classroom.id, gist.id);
+        classroom.gistId = gist.id;
+      }
+      return;
+    } catch (e) {
+      console.error('[DB] Cloud save failed:', e);
+      cloudActive = false;
+    }
+  }
+}
+
+// 从云端加载单个课堂
+async function loadClassroomFromCloud(classroomId) {
+  if (await ensureCloud()) {
+    try {
+      const gistId = getGistId(classroomId);
+      if (gistId) {
+        const data = await getGist(gistId);
+        if (data) {
+          data.gistId = data.gistId || gistId;
+          return data;
+        }
+      }
+    } catch (e) {
+      console.error('[DB] Cloud get failed:', e);
+      cloudActive = false;
+    }
+  }
+  return null;
+}
+
+// 从云端加载所有课堂
+async function loadAllClassroomsFromCloud() {
+  if (await ensureCloud()) {
+    try {
+      const gistMap = getGistMap();
+      const classrooms = {};
+
+      // 从云端 gist 映射加载
+      for (const [id, gistId] of Object.entries(gistMap)) {
+        try {
+          const data = await getGist(gistId);
+          if (data) {
+            data.gistId = data.gistId || gistId;
+            classrooms[id] = data;
+          }
+        } catch (e) { console.error('[DB] Failed to load gist:', gistId, e); }
+      }
+
+      return classrooms;
+    } catch (e) {
+      console.error('[DB] Cloud getAll failed:', e);
+      cloudActive = false;
+    }
+  }
+  return {};
+}
+
+// ==================== State ====================
+let state = {
+  studentInfo: { name: '', className: '', studentId: '', groupName: '' },
+  classrooms: [],
+  currentClassroom: null,
+  evaluateMode: 'evaluate', // 'evaluate' | 'analysis'
+  selectedGroup: '',
+  scores: { functionality: 0, performance: 0, experience: 0, innovation: 0 },
+  comment: '',
+  notification: null,
+  showCreateModal: false,
+  showShareModal: false,
+  showSettingsModal: false,
+  shareClassroomId: null,
+  gistToken: 'ae9ab007d0ad04dcc548b2065bc8c40d',
+  analysisResult: null,
+  cloudMode: null, // null=检测中, true=在线, false=离线
+  loading: false,
+};
+
+async function loadState() {
+  try {
+    const saved = localStorage.getItem(STATE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state.studentInfo = parsed.studentInfo || state.studentInfo;
+      state.gistToken = parsed.gistToken || DEFAULT_TOKEN;
+    }
+    cloudToken = state.gistToken || DEFAULT_TOKEN;
+
+    // 初始化云端连接
+    await refreshCloud();
+    state.cloudMode = isCloudMode();
+
+    // 加载课堂列表
+    if (state.cloudMode) {
+      const cloudClassrooms = await loadAllClassroomsFromCloud();
+      state.classrooms = Object.values(cloudClassrooms);
+    } else {
+      const saved = localStorage.getItem(STATE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        state.classrooms = parsed.classrooms || [];
+      }
+    }
+  } catch(e) { console.error('Load state error:', e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STATE_KEY, JSON.stringify({
+      studentInfo: state.studentInfo,
+      classrooms: state.classrooms,
+      gistToken: state.gistToken
+    }));
+  } catch(e) { console.error('Save state error:', e); }
+}
+
+// ==================== Analysis Logic ====================
+function generateAnalysis(scores, comment) {
+  const dims = DIMENSIONS.map(d => ({...d, score: scores[d.key] || 0}));
+  const sorted = [...dims].sort((a,b) => b.score - a.score);
+  const weakest = sorted[sorted.length - 1];
+  const total = dims.reduce((sum, d) => sum + d.score * d.weight, 0);
+
+  let overall = '';
+  if (total >= 90) overall = `该作品表现卓越，综合得分${total.toFixed(1)}分。在所有评价维度上均展现出极高的专业水准，是一个近乎完美的作品。`;
+  else if (total >= 80) overall = `该作品在功能实现和硬件设计方面表现突出，整体表现良好。综合得分${total.toFixed(1)}分，但仍有一定提升空间。`;
+  else if (total >= 70) overall = `该作品整体表现中等偏上，综合得分${total.toFixed(1)}分。主要功能基本完善，但在部分维度仍有改进余地。`;
+  else if (total >= 60) overall = `该作品综合得分${total.toFixed(1)}分，刚好达到及格线。核心功能有所体现，但多个方面需要加强。`;
+  else overall = `未达到及格标准，需要全面审视设计和实现过程，找出关键问题所在。`;
+
+  let strengths = '';
+  const best = sorted[0];
+  if (best.score >= 85) {
+    if (best.key === 'functionality') strengths = '功能实现与硬件设计得分优秀，作品在基础功能实现和硬件搭建上非常扎实，技术执行力强。';
+    else if (best.key === 'performance') strengths = '性能指标与软件编程表现突出，软件逻辑清晰，性能优化到位，代码质量高。';
+    else if (best.key === 'experience') strengths = '用户体验与系统集成表现出色，交互设计合理，系统运行稳定流畅。';
+    else strengths = '创新性与规范得分优秀，作品具有独特的创意亮点，在同类作品中表现抢眼。';
+  }
+
+  let weakness = '';
+  if (weakest.score < 70) {
+    if (weakest.key === 'functionality') weakness = '功能实现与硬件设计方面存在不足，部分功能可能未完全实现或硬件搭建不够规范。';
+    else if (weakest.key === 'performance') weakness = '性能指标与软件编程得分偏低，可能存在代码效率问题或功能。';
+    else if (weakest.key === 'experience') weakness = '用户体验与系统集成方面存在不足，系统调试可能不够充分，影响了使用流畅度。';
+    else weakness = '创新性与规范性方面有待加强，作品在创意设计和标准化方面缺乏亮点。';
+  }
+
+  let suggestions = [];
+  if (weakest.key === 'functionality') suggestions.push('完善核心功能的实现，确保所有需求点都得到满足，并检查硬件连接的稳定性。');
+  else if (weakest.key === 'performance') suggestions.push('优化代码结构和算法效率，进行充分的测试，确保软件功能稳定可靠。');
+  else if (weakest.key === 'experience') suggestions.push('加强系统集成与调试环节，优化用户交互流程，提升整体体验的稳定性和易用性。');
+  else suggestions.push('在后续项目中注重创新思维引入，例如结合前沿技术或独特设计理念，并严格遵循行业规范。');
+
+  if (total >= 80 && total < 90) suggestions.push('建议团队在软件开发中增加算法优化或功能扩展，以弥补性能指标上的小差距。');
+
+  let confidence = '中';
+  if (total >= 85) confidence = '高';
+  else if (total < 60) confidence = '低';
+
+  return { total, overall, strengths, weakness, suggestions, confidence };
+}
+
+function generateClassSummary(groupStats) {
+  const active = groupStats.filter(g => g.count > 0);
+  if (active.length === 0) return { overall: '暂无评价数据', strengths: '', weakness: '', suggestion: '' };
+
+  const avg = active.reduce((s, g) => s + g.avgTotal, 0) / active.length;
+  const sorted = [...active].sort((a,b) => b.avgTotal - a.avgTotal);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+
+  let overall = `共${active.length}个小组参与评价，班级均分${avg.toFixed(1)}分。${best.group}表现最为突出，综合得分${best.avgTotal.toFixed(1)}分。`;
+
+  let strengths = '';
+  const bestDim = Object.entries(best.avgScores).sort((a,b) => b[1] - a[1])[0];
+  if (bestDim) {
+    const dimLabel = DIMENSIONS.find(d => d.key === bestDim[0])?.desc || bestDim[0];
+    strengths = `${best.group}的${dimLabel}均分${bestDim[1].toFixed(1)}分，是班级优势维度。`;
+  }
+
+  let weakness = '';
+  const worstDim = Object.entries(worst.avgScores).sort((a,b) => a[1] - b[1])[0];
+  if (worstDim) {
+    const dimLabel = DIMENSIONS.find(d => d.key === worstDim[0])?.desc || worstDim[0];
+    weakness = `${worst.group}的${dimLabel}均分${worstDim[1].toFixed(1)}分，是待提升的薄弱环节。`;
+  }
+
+  return { overall, strengths, weakness, suggestion: '建议加强实践环节，针对薄弱点开展专题工作坊，同时鼓励小组间交流学习优秀经验。' };
+}
+
+function getGradeInfo(score) {
+  if (score >= 90) return GRADES[0];
+  if (score >= 80) return GRADES[1];
+  if (score >= 70) return GRADES[2];
+  if (score >= 60) return GRADES[3];
+  return GRADES[4];
+}
+
+function getGroupStats(classroom) {
+  const groups = classroom.groups || [];
+  const evaluations = classroom.evaluations || [];
+  return groups.map(g => {
+    const evals = evaluations.filter(e => e.toGroup === g);
+    if (evals.length === 0) return { group: g, count: 0, avgTotal: 0, avgScores: { functionality: 0, performance: 0, experience: 0, innovation: 0 } };
+    const avgScores = {};
+    DIMENSIONS.forEach(d => {
+      avgScores[d.key] = evals.reduce((s, e) => s + (e.scores[d.key] || 0), 0) / evals.length;
+    });
+    const avgTotal = evals.reduce((s, e) => {
+      return s + DIMENSIONS.reduce((ss, d) => ss + (e.scores[d.key] || 0) * d.weight, 0);
+    }, 0) / evals.length;
+    return { group: g, count: evals.length, avgTotal, avgScores };
+  });
+}
+
+// ==================== Router ====================
+function getRoute() {
+  const hash = window.location.hash || '#/';
+  return hash;
+}
+
+function navigate(route) {
+  window.location.hash = route;
+}
+
+function handleRoute() {
+  const hash = getRoute();
+  if (hash === '#/' || hash === '#' || hash === '') {
+    navigate('#/home');
+    return;
+  }
+  render();
+}
+
+// ==================== Notification ====================
+function showNotification(message, type = 'success') {
+  state.notification = { message, type, id: Date.now() };
+  render();
+  setTimeout(() => {
+    if (state.notification && state.notification.id === state.notification?.id) {
+      state.notification = null;
+      render();
+    }
+  }, 3000);
+}
+
+// ==================== Render Engine ====================
+function render() {
+  const app = document.getElementById('app');
+
+  // 加载状态
+  if (state.loading) {
+    app.innerHTML = `
+      <div class="min-h-[100dvh] flex items-center justify-center" style="background:#0B1120">
+        <div class="text-center">
+          <div class="animate-spin w-8 h-8 mx-auto mb-3 border-2 border-[#2563EB] border-t-transparent rounded-full"></div>
+          <p class="text-sm text-[#64748B]">正在加载数据...</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const hash = getRoute();
+  let content = '';
+
+  switch(hash) {
+    case '#/home':
+      content = renderHome();
+      break;
+    case '#/classrooms':
+      content = renderClassrooms();
+      break;
+    case '#/tasks':
+      content = renderTasks();
+      break;
+    case '#/evaluate':
+      content = renderEvaluate();
+      break;
+    case '#/dashboard':
+      content = renderDashboard();
+      break;
+    default:
+      content = renderHome();
+  }
+
+  app.innerHTML = content + renderModals() + renderNotification();
+
+  requestAnimationFrame(() => {
+    try { lucide.createIcons(); } catch(e) {}
+    initCharts();
+  });
+}
+
+// ==================== Notification Render ====================
+function renderNotification() {
+  if (!state.notification) return '';
+  const n = state.notification;
+  const bgColor = n.type === 'success' ? 'bg-[#06D6A0]' : n.type === 'error' ? 'bg-[#EF476F]' : 'bg-[#FFD166]';
+  const textColor = n.type === 'warning' ? '#0B1120' : '#0B1120';
+  return `
+    <div id="notification-bar" class="fixed top-0 left-0 right-0 z-50 notification-enter">
+      <div class="${bgColor} text-center py-2 px-4 text-sm font-medium" style="color:${textColor}">
+        ${n.message}
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Common Components ====================
+function renderTopBar(title, showBack = true, rightContent = '') {
+  return `
+    <div class="py-3 px-4 border-b border-[#1E2D45] flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        ${showBack ? `<button onclick="navigate('#/home')" class="p-1 rounded-lg hover:bg-[#1E2D45] transition-colors"><i data-lucide="arrow-left" class="w-5 h-5 text-[#94A3B8]"></i></button>` : ''}
+        <span class="font-semibold text-[#E2E8F0]">${title}</span>
+      </div>
+      <div>${rightContent}</div>
+    </div>
+  `;
+}
+
+function renderStatusBadge(status) {
+  const map = {
+    'not-started': { label: '未开始', color: '#FFD166', bg: 'rgba(255,209,102,0.15)' },
+    'ongoing': { label: '进行中', color: '#06D6A0', bg: 'rgba(6,214,160,0.15)' },
+    'ended': { label: '已结束', color: '#64748B', bg: 'rgba(100,116,139,0.15)' }
+  };
+  const s = map[status] || map['not-started'];
+  return `<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="color:${s.color};background:${s.bg}">${s.label}</span>`;
+}
+
+// ==================== Home Page ====================
+function renderHome() {
+  const si = state.studentInfo;
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      <!-- Top Nav -->
+      <div class="py-3 px-4 border-b border-[#1E2D45] flex items-center justify-center">
+        <div class="flex items-center gap-2">
+          <i data-lucide="building-2" class="w-5 h-5 text-[#2563EB]"></i>
+          <span class="font-semibold text-[#E2E8F0]">智慧水产养殖监控系统 · 智能评价系统</span>
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      ${state.cloudMode ? `
+      <div class="w-full py-2 px-4 flex items-center justify-center gap-2 text-xs" style="background:rgba(6,214,160,0.06);border-bottom:1px solid rgba(6,214,160,0.15)">
+        <i data-lucide="cloud" class="w-3 h-3" style="color:#06D6A0"></i>
+        <span style="color:#06D6A0">Gitee 云端同步已开启</span>
+      </div>
+      ` : `
+      <div class="w-full py-2 px-4 flex items-center justify-center gap-2 text-xs" style="background:rgba(255,209,102,0.06);border-bottom:1px solid rgba(255,209,102,0.15)">
+        <i data-lucide="cloud-off" class="w-3 h-3" style="color:#FFD166"></i>
+        <span style="color:#FFD166">本地模式 - 数据仅保存在本机</span>
+      </div>
+      `}
+
+      <!-- Content -->
+      <div class="max-w-lg mx-auto px-4 py-8">
+        <!-- Title -->
+        <div class="text-center mb-8 animate-fade-in-up">
+          <h1 class="text-2xl font-bold text-[#E2E8F0] mb-1">智能评价系统</h1>
+          <p class="text-sm text-[#64748B]">小组互评与课堂评价工具</p>
+        </div>
+
+        <!-- Personal Info Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-5 mb-6 animate-fade-in-up" style="animation-delay:0.1s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-4">填写个人信息（用于评价记录）</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <input type="text" placeholder="你的名字" value="${escapeAttr(si.name)}" onchange="state.studentInfo.name=this.value;saveState()" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+            <div>
+              <input type="text" placeholder="如：23物联网1班" value="${escapeAttr(si.className)}" onchange="state.studentInfo.className=this.value;saveState()" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+            <div>
+              <input type="text" placeholder="你的学号" value="${escapeAttr(si.studentId)}" onchange="state.studentInfo.studentId=this.value;saveState()" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+            <div>
+              <input type="text" placeholder="如：第3小组" value="${escapeAttr(si.groupName)}" onchange="state.studentInfo.groupName=this.value;saveState()" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry Cards -->
+        <div class="grid grid-cols-2 gap-4 animate-fade-in-up" style="animation-delay:0.2s">
+          <!-- Student Entry -->
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-5 cursor-pointer card-hover" onclick="navigate('#/tasks')">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-[rgba(6,214,160,0.15)] flex items-center justify-center">
+                <i data-lucide="users" class="w-4 h-4 text-[#06D6A0]"></i>
+              </div>
+              <span class="text-sm font-semibold text-[#E2E8F0]">学生入口</span>
+            </div>
+            <p class="text-xs text-[#64748B] mb-3">查看评价任务并评分</p>
+            <span class="text-sm font-medium text-[#06D6A0]">进入 <i data-lucide="arrow-right" class="w-4 h-4 inline"></i></span>
+          </div>
+
+          <!-- Teacher Entry -->
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-5 cursor-pointer card-hover" onclick="navigate('#/classrooms')">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-[rgba(37,99,235,0.15)] flex items-center justify-center">
+                <i data-lucide="bar-chart-3" class="w-4 h-4 text-[#2563EB]"></i>
+              </div>
+              <span class="text-sm font-semibold text-[#E2E8F0]">教师看板</span>
+            </div>
+            <p class="text-xs text-[#64748B] mb-3">管理课堂与数据</p>
+            <span class="text-sm font-medium text-[#2563EB]">进入 <i data-lucide="arrow-right" class="w-4 h-4 inline"></i></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Classrooms Page ====================
+function renderClassrooms() {
+  const classrooms = state.classrooms;
+  const listHtml = classrooms.length === 0 ? `
+    <div class="text-center py-16">
+      <i data-lucide="users" class="w-12 h-12 text-[#1E2D45] mx-auto mb-3"></i>
+      <p class="text-[#64748B]">暂无课堂，点击上方「创建课堂」开始</p>
+    </div>
+  ` : classrooms.map((c, idx) => {
+    const evalCount = (c.evaluations || []).length;
+    const groupCount = (c.groups || []).length;
+    return `
+      <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:${idx * 0.05}s">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <h3 class="font-semibold text-[#E2E8F0]">${escapeHtml(c.topicName)}</h3>
+            <p class="text-xs text-[#64748B] mt-1">${escapeHtml(c.className)} · ${evalCount}条评价 · ${groupCount}个小组</p>
+          </div>
+          ${renderStatusBadge(c.status)}
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          ${c.status === 'not-started' ? `
+            <button onclick="startClassroom('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(6,214,160,0.15)] text-[#06D6A0] hover:bg-[rgba(6,214,160,0.25)] transition-colors">
+              <i data-lucide="play" class="w-3 h-3 inline mr-1"></i>开始评价
+            </button>
+          ` : ''}
+          ${c.status === 'ongoing' ? `
+            <button onclick="endClassroom('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(255,209,102,0.15)] text-[#FFD166] hover:bg-[rgba(255,209,102,0.25)] transition-colors">
+              <i data-lucide="square" class="w-3 h-3 inline mr-1"></i>结束评价
+            </button>
+          ` : ''}
+          <button onclick="openShareModal('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(96,165,250,0.15)] text-[#60A5FA] hover:bg-[rgba(96,165,250,0.25)] transition-colors">
+            <i data-lucide="share-2" class="w-3 h-3 inline mr-1"></i>分享
+          </button>
+          <button onclick="openDashboard('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(37,99,235,0.15)] text-[#2563EB] hover:bg-[rgba(37,99,235,0.25)] transition-colors">
+            <i data-lucide="bar-chart-3" class="w-3 h-3 inline mr-1"></i>看板
+          </button>
+          <button onclick="exportClassroom('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(100,116,139,0.15)] text-[#94A3B8] hover:bg-[rgba(100,116,139,0.25)] transition-colors">
+            <i data-lucide="download" class="w-3 h-3 inline mr-1"></i>导出
+          </button>
+          <button onclick="deleteClassroom('${c.id}')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-[rgba(239,71,111,0.15)] text-[#EF476F] hover:bg-[rgba(239,71,111,0.25)] transition-colors">
+            <i data-lucide="trash-2" class="w-3 h-3 inline mr-1"></i>删除
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      ${renderTopBar('课堂管理', true, `
+        <div class="flex items-center gap-2">
+          ${state.cloudMode ? `<i data-lucide="cloud" class="w-4 h-4 text-[#06D6A0]"></i>` : `<i data-lucide="cloud-off" class="w-4 h-4 text-[#FFD166]"></i>`}
+          <button onclick="openSettingsModal()" class="p-1.5 rounded-lg hover:bg-[#1E2D45] transition-colors">
+            <i data-lucide="settings" class="w-5 h-5 text-[#94A3B8]"></i>
+          </button>
+        </div>
+      `)}
+
+      <div class="max-w-2xl mx-auto px-3 sm:px-4 py-4">
+        <!-- Action Bar -->
+        <div class="flex gap-3 mb-4">
+          <button onclick="openCreateModal()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors">
+            <i data-lucide="plus" class="w-4 h-4"></i>创建课堂
+          </button>
+          <button onclick="importClassroom()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-[#1E2D45] text-[#94A3B8] hover:border-[#2563EB] hover:text-[#E2E8F0] transition-colors">
+            <i data-lucide="upload" class="w-4 h-4"></i>导入
+          </button>
+          <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="handleImportFile(event)">
+        </div>
+
+        <!-- Classroom List -->
+        <div class="space-y-3">
+          ${listHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Tasks Page ====================
+function renderTasks() {
+  const si = state.studentInfo;
+  const availableClassrooms = state.classrooms.filter(c => c.status === 'ongoing' || c.status === 'ended');
+
+  const listHtml = availableClassrooms.length === 0 ? `
+    <div class="text-center py-16">
+      <i data-lucide="alert-circle" class="w-12 h-12 text-[#1E2D45] mx-auto mb-3"></i>
+      <p class="text-[#64748B] mb-1">暂无可用课堂</p>
+      <p class="text-xs text-[#475569]">请让老师分享课堂链接给你</p>
+    </div>
+  ` : availableClassrooms.map((c, idx) => {
+    const canEval = c.status === 'ongoing';
+    return `
+      <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 cursor-pointer card-hover animate-fade-in-up ${canEval ? '' : 'opacity-70'}" style="animation-delay:${idx * 0.05}s" ${canEval ? `onclick="openEvaluate('${c.id}')"` : ''}>
+        <div class="flex items-start justify-between">
+          <div>
+            <h3 class="font-semibold text-[#E2E8F0]">${escapeHtml(c.topicName)}</h3>
+            <p class="text-xs text-[#64748B] mt-1">${escapeHtml(c.className)} · ${(c.groups || []).length}个小组</p>
+          </div>
+          ${renderStatusBadge(c.status)}
+        </div>
+        ${canEval ? `<p class="text-xs text-[#2563EB] mt-2">点击进入评价 <i data-lucide="arrow-right" class="w-3 h-3 inline"></i></p>` : `<p class="text-xs text-[#64748B] mt-2">评价已结束，仅可查看结果</p>`}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      ${renderTopBar('评价任务', true, `
+        <div class="flex items-center gap-2 text-xs text-[#94A3B8]">
+          <span>${escapeHtml(si.name || '未设置')}</span>
+          <span>·</span>
+          <span>${escapeHtml(si.groupName || '未设置')}</span>
+        </div>
+      `)}
+
+      <div class="max-w-2xl mx-auto px-3 sm:px-4 py-4">
+        <!-- Info Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 mb-4 animate-fade-in-up">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-[rgba(37,99,235,0.15)] flex items-center justify-center">
+              <i data-lucide="info" class="w-4 h-4 text-[#2563EB]"></i>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-[#E2E8F0]">选择课堂进行评价</p>
+              <p class="text-xs text-[#64748B]">选择一个课堂后，对该课堂中的其他小组进行评价</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Refresh Button -->
+        <div class="mb-4">
+          <button onclick="reloadClassrooms()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm border border-[#1E2D45] text-[#94A3B8] hover:bg-[#1E2D45] transition-colors">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            刷新课堂列表
+          </button>
+        </div>
+
+        <!-- Classroom List -->
+        <div class="space-y-3">
+          ${listHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Evaluate Page ====================
+function renderEvaluate() {
+  if (!state.currentClassroom) {
+    return `
+      <div class="min-h-screen bg-[#0B1120] flex items-center justify-center">
+        <div class="text-center">
+          <i data-lucide="alert-circle" class="w-12 h-12 text-[#1E2D45] mx-auto mb-3"></i>
+          <p class="text-[#64748B]">未选择课堂</p>
+          <button onclick="navigate('#/tasks')" class="mt-3 px-4 py-2 rounded-lg text-sm bg-[#2563EB] text-white">返回评价任务</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const classroom = state.currentClassroom;
+  const groups = classroom.groups || [];
+
+  if (state.evaluateMode === 'analysis' && state.analysisResult) {
+    return renderAnalysisView(classroom);
+  }
+
+  // Evaluate Mode
+  const allScored = DIMENSIONS.every(d => state.scores[d.key] > 0);
+  const commentValid = state.comment.trim().length >= 10;
+  const canSubmit = allScored && commentValid && state.selectedGroup;
+
+  const totalScore = allScored ? DIMENSIONS.reduce((s, d) => s + (state.scores[d.key] || 0) * d.weight, 0) : 0;
+
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      ${renderTopBar('1 · 评价评分', true, `
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-[#94A3B8]">${escapeHtml(classroom.topicName)}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-[rgba(100,116,139,0.15)] text-[#94A3B8]">匿名</span>
+        </div>
+      `)}
+
+      <div class="max-w-2xl mx-auto px-3 sm:px-4 py-4 space-y-4 pb-24">
+        <!-- Target Group Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">评价对象</h3>
+          <div class="flex flex-wrap gap-2">
+            ${groups.filter(g => g !== state.studentInfo.groupName).map(g => `
+              <button class="group-btn px-3 py-1.5 rounded-lg text-sm border border-[#1E2D45] text-[#94A3B8] ${state.selectedGroup === g ? 'selected' : ''}" onclick="selectGroup('${escapeAttr(g)}')">
+                ${escapeHtml(g)}
+              </button>
+            `).join('')}
+            ${groups.filter(g => g !== state.studentInfo.groupName).length === 0 ? '<p class="text-xs text-[#64748B]">没有可评价的小组</p>' : ''}
+          </div>
+        </div>
+
+        <!-- Scoring Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.1s">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-[#E2E8F0]">评价评分</h3>
+            <span class="text-xs text-[#64748B]">点击按钮选择等级</span>
+          </div>
+          ${DIMENSIONS.map((d, i) => `
+            <div class="${i > 0 ? 'border-t border-[#1E2D45] pt-4 mt-4' : ''}">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-[#E2E8F0]">${d.label}</span>
+                <span class="text-xs text-[#64748B]">权重 ${(d.weight * 100).toFixed(0)}%</span>
+              </div>
+              <div class="flex gap-2">
+                ${GRADES.map(g => `
+                  <button class="grade-btn flex-1 py-2 rounded-lg text-xs font-medium border ${state.scores[d.key] === g.score ? 'selected' : ''}" 
+                    style="border-color:${g.color};color:${state.scores[d.key] === g.score ? g.color : '#64748B'};background:${state.scores[d.key] === g.score ? g.bg : 'transparent'}"
+                    onclick="selectScore('${d.key}', ${g.score})">
+                    ${g.label}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Comment Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.2s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">评价意见</h3>
+          <textarea id="comment-input" rows="4" placeholder="请输入对该小组的评价意见（至少10字）" 
+            class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]"
+            oninput="state.comment=this.value;updateCharCount()">${escapeHtml(state.comment)}</textarea>
+          <div class="flex justify-end mt-1">
+            <span id="char-count" class="text-xs ${commentValid ? 'text-[#06D6A0]' : 'text-[#64748B]'}">${state.comment.trim().length}/10</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Bar -->
+      <div class="fixed bottom-0 left-0 right-0 bg-[#131D30] border-t border-[#1E2D45] p-4">
+        <div class="max-w-2xl mx-auto flex items-center justify-between">
+          <div class="text-sm">
+            <span class="text-[#64748B]">综合得分：</span>
+            <span class="font-bold text-lg" style="color:${totalScore > 0 ? getGradeInfo(totalScore).color : '#64748B'}">${totalScore > 0 ? totalScore.toFixed(1) : '--'}</span>
+          </div>
+          <button onclick="submitEvaluation()" class="px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${canSubmit ? 'bg-[#2563EB] text-white hover:bg-[#1d4ed8] animate-pulse-glow' : 'bg-[#1E2D45] text-[#475569] cursor-not-allowed'}" ${canSubmit ? '' : 'disabled'}>
+            提交评分并获取分析
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Analysis View ====================
+function renderAnalysisView(classroom) {
+  const ar = state.analysisResult;
+  const grade = getGradeInfo(ar.total);
+  const groupStats = getGroupStats(classroom);
+  const activeGroups = groupStats.filter(g => g.count > 0);
+  const totalEvals = (classroom.evaluations || []).length;
+  const classAvg = activeGroups.length > 0 ? activeGroups.reduce((s, g) => s + g.avgTotal, 0) / activeGroups.length : 0;
+  const maxScore = activeGroups.length > 0 ? Math.max(...activeGroups.map(g => g.avgTotal)) : 0;
+
+  // Grade distribution
+  const gradeDist = [0, 0, 0, 0, 0]; // 优秀,良好,中等,及格,不及格
+  activeGroups.forEach(g => {
+    if (g.avgTotal >= 90) gradeDist[0]++;
+    else if (g.avgTotal >= 80) gradeDist[1]++;
+    else if (g.avgTotal >= 70) gradeDist[2]++;
+    else if (g.avgTotal >= 60) gradeDist[3]++;
+    else gradeDist[4]++;
+  });
+
+  const classSummary = generateClassSummary(groupStats);
+
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      ${renderTopBar('评价分析', true, `
+        <span class="text-xs text-[#94A3B8]">${escapeHtml(classroom.topicName)}</span>
+      `)}
+
+      <div class="max-w-2xl mx-auto px-3 sm:px-4 py-4 space-y-4 pb-8">
+        <!-- AI Analysis Card -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-5 animate-fade-in-up">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:${grade.bg}">
+              <span class="text-xl font-bold" style="color:${grade.color}">${ar.total.toFixed(1)}</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-[#E2E8F0]">综合得分</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium" style="color:${grade.color};background:${grade.bg}">${grade.label}</span>
+                <span class="text-xs text-[#64748B]">置信度：${ar.confidence}</span>
+              </div>
+              <p class="text-xs text-[#64748B] mt-0.5">智能评价分析结果</p>
+            </div>
+          </div>
+
+          <div class="space-y-3 text-sm">
+            <div>
+              <p class="text-xs font-medium text-[#94A3B8] mb-1">总体评价</p>
+              <p class="text-[#E2E8F0] leading-relaxed">${ar.overall}</p>
+            </div>
+            ${ar.strengths ? `
+              <div class="flex gap-2">
+                <span class="text-xs px-1.5 py-0.5 rounded bg-[rgba(6,214,160,0.15)] text-[#06D6A0] shrink-0 mt-0.5">优势</span>
+                <p class="text-[#E2E8F0] leading-relaxed">${ar.strengths}</p>
+              </div>
+            ` : ''}
+            ${ar.weakness ? `
+              <div class="flex gap-2">
+                <span class="text-xs px-1.5 py-0.5 rounded bg-[rgba(255,209,102,0.15)] text-[#FFD166] shrink-0 mt-0.5">待改进</span>
+                <p class="text-[#E2E8F0] leading-relaxed">${ar.weakness}</p>
+              </div>
+            ` : ''}
+            ${ar.suggestions.length > 0 ? `
+              <div>
+                <p class="text-xs font-medium text-[#94A3B8] mb-1">改进建议</p>
+                <ul class="space-y-1">
+                  ${ar.suggestions.map(s => `<li class="text-[#E2E8F0] leading-relaxed flex gap-2"><span class="text-[#60A5FA] shrink-0">•</span>${s}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-in-up" style="animation-delay:0.1s">
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">已提交评价</p>
+            <p class="text-lg font-bold text-[#2563EB]">${totalEvals}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">班级均分</p>
+            <p class="text-lg font-bold text-[#06D6A0]">${classAvg > 0 ? classAvg.toFixed(1) : '--'}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">最高分</p>
+            <p class="text-lg font-bold text-[#FFD166]">${maxScore > 0 ? maxScore.toFixed(1) : '--'}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">评价小组</p>
+            <p class="text-lg font-bold text-[#60A5FA]">${activeGroups.length}</p>
+          </div>
+        </div>
+
+        <!-- Radar Chart -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.15s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">维度雷达图</h3>
+          <div id="radar-chart-eval" style="width:100%;height:280px;"></div>
+        </div>
+
+        <!-- Bar Chart -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.2s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">各小组综合得分</h3>
+          <div id="bar-chart-eval" style="width:100%;height:280px;"></div>
+        </div>
+
+        <!-- Grade Distribution -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.25s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">成绩分布</h3>
+          <div class="grid grid-cols-5 gap-2">
+            ${GRADES.map((g, i) => `
+              <div class="text-center p-2 rounded-lg" style="background:${g.bg}">
+                <p class="text-lg font-bold" style="color:${g.color}">${gradeDist[i]}</p>
+                <p class="text-xs" style="color:${g.color}">${g.label}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Class Summary -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.3s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">班级智能总结</h3>
+          <div class="space-y-2 text-sm">
+            <p class="text-[#E2E8F0]">${classSummary.overall}</p>
+            ${classSummary.strengths ? `<p class="text-[#06D6A0]">优势：${classSummary.strengths}</p>` : ''}
+            ${classSummary.weakness ? `<p class="text-[#FFD166]">待提升：${classSummary.weakness}</p>` : ''}
+            <p class="text-[#60A5FA]">教学建议：${classSummary.suggestion}</p>
+          </div>
+        </div>
+
+        <!-- Evaluation Detail Table -->
+        ${totalEvals > 0 ? `
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.35s">
+            <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">评价明细</h3>
+            <div class="eval-table-wrap overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-[#1E2D45]">
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">序号</th>
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">评价者</th>
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">被评小组</th>
+                    <th class="text-right py-2 px-2 text-xs text-[#64748B] font-medium">综合分</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(classroom.evaluations || []).map((e, i) => {
+                    const total = DIMENSIONS.reduce((s, d) => s + (e.scores[d.key] || 0) * d.weight, 0);
+                    const g = getGradeInfo(total);
+                    return `
+                      <tr class="border-b border-[#1E2D45]">
+                        <td class="py-2 px-2 text-[#94A3B8]">${i + 1}</td>
+                        <td class="py-2 px-2 text-[#E2E8F0]">${escapeHtml(e.fromStudent || '匿名')}</td>
+                        <td class="py-2 px-2 text-[#E2E8F0]">${escapeHtml(e.toGroup)}</td>
+                        <td class="py-2 px-2 text-right font-medium" style="color:${g.color}">${total.toFixed(1)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Continue Button -->
+        <div class="animate-fade-in-up" style="animation-delay:0.4s">
+          <button onclick="continueEvaluate()" class="w-full py-3 rounded-xl text-sm font-medium bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors">
+            继续评价
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Dashboard Page ====================
+function renderDashboard() {
+  if (!state.currentClassroom) {
+    return `
+      <div class="min-h-screen bg-[#0B1120]">
+        ${renderTopBar('数据看板')}
+        <div class="flex flex-col items-center justify-center py-24">
+          <i data-lucide="bar-chart-3" class="w-12 h-12 text-[#1E2D45] mx-auto mb-3"></i>
+          <p class="text-[#64748B] mb-4">暂无数据，请先选择课堂</p>
+          <button onclick="navigate('#/classrooms')" class="px-4 py-2 rounded-lg text-sm bg-[#2563EB] text-white">返回课堂管理</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const classroom = state.currentClassroom;
+  const groupStats = getGroupStats(classroom);
+  const activeGroups = groupStats.filter(g => g.count > 0);
+  const totalEvals = (classroom.evaluations || []).length;
+  const classAvg = activeGroups.length > 0 ? activeGroups.reduce((s, g) => s + g.avgTotal, 0) / activeGroups.length : 0;
+  const maxScore = activeGroups.length > 0 ? Math.max(...activeGroups.map(g => g.avgTotal)) : 0;
+
+  const gradeDist = [0, 0, 0, 0, 0];
+  activeGroups.forEach(g => {
+    if (g.avgTotal >= 90) gradeDist[0]++;
+    else if (g.avgTotal >= 80) gradeDist[1]++;
+    else if (g.avgTotal >= 70) gradeDist[2]++;
+    else if (g.avgTotal >= 60) gradeDist[3]++;
+    else gradeDist[4]++;
+  });
+
+  const classSummary = generateClassSummary(groupStats);
+
+  return `
+    <div class="min-h-screen bg-[#0B1120]">
+      ${renderTopBar('数据看板', true, `
+        <span class="text-xs text-[#94A3B8]">${escapeHtml(classroom.topicName)}</span>
+      `)}
+
+      <div class="max-w-4xl mx-auto px-3 sm:px-4 py-4 space-y-4 pb-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-fade-in-up">
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">已提交评价</p>
+            <p class="text-lg font-bold text-[#2563EB]">${totalEvals}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">班级均分</p>
+            <p class="text-lg font-bold text-[#06D6A0]">${classAvg > 0 ? classAvg.toFixed(1) : '--'}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">最高分</p>
+            <p class="text-lg font-bold text-[#FFD166]">${maxScore > 0 ? maxScore.toFixed(1) : '--'}</p>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-3 text-center">
+            <p class="text-xs text-[#64748B] mb-1">评价小组</p>
+            <p class="text-lg font-bold text-[#60A5FA]">${activeGroups.length}</p>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fade-in-up" style="animation-delay:0.1s">
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4">
+            <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">维度雷达图</h3>
+            <div id="radar-chart-dash" style="width:100%;height:280px;"></div>
+          </div>
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4">
+            <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">各小组综合得分</h3>
+            <div id="bar-chart-dash" style="width:100%;height:280px;"></div>
+          </div>
+        </div>
+
+        <!-- Grade Distribution -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.15s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">成绩分布</h3>
+          <div class="grid grid-cols-5 gap-2">
+            ${GRADES.map((g, i) => `
+              <div class="text-center p-2 rounded-lg" style="background:${g.bg}">
+                <p class="text-lg font-bold" style="color:${g.color}">${gradeDist[i]}</p>
+                <p class="text-xs" style="color:${g.color}">${g.label}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Class Summary -->
+        <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.2s">
+          <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">班级智能总结</h3>
+          <div class="space-y-2 text-sm">
+            <p class="text-[#E2E8F0]">${classSummary.overall}</p>
+            ${classSummary.strengths ? `<p class="text-[#06D6A0]">优势：${classSummary.strengths}</p>` : ''}
+            ${classSummary.weakness ? `<p class="text-[#FFD166]">待提升：${classSummary.weakness}</p>` : ''}
+            <p class="text-[#60A5FA]">教学建议：${classSummary.suggestion}</p>
+          </div>
+        </div>
+
+        <!-- Evaluation Detail Table -->
+        ${totalEvals > 0 ? `
+          <div class="rounded-xl border border-[#1E2D45] bg-[#131D30] p-4 animate-fade-in-up" style="animation-delay:0.25s">
+            <h3 class="text-sm font-semibold text-[#E2E8F0] mb-3">评价明细</h3>
+            <div class="eval-table-wrap overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-[#1E2D45]">
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">序号</th>
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">评价者</th>
+                    <th class="text-left py-2 px-2 text-xs text-[#64748B] font-medium">被评小组</th>
+                    <th class="text-right py-2 px-2 text-xs text-[#64748B] font-medium">综合分</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(classroom.evaluations || []).map((e, i) => {
+                    const total = DIMENSIONS.reduce((s, d) => s + (e.scores[d.key] || 0) * d.weight, 0);
+                    const g = getGradeInfo(total);
+                    return `
+                      <tr class="border-b border-[#1E2D45]">
+                        <td class="py-2 px-2 text-[#94A3B8]">${i + 1}</td>
+                        <td class="py-2 px-2 text-[#E2E8F0]">${escapeHtml(e.fromStudent || '匿名')}</td>
+                        <td class="py-2 px-2 text-[#E2E8F0]">${escapeHtml(e.toGroup)}</td>
+                        <td class="py-2 px-2 text-right font-medium" style="color:${g.color}">${total.toFixed(1)}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ==================== Modals ====================
+function renderModals() {
+  let html = '';
+
+  // Create Classroom Modal
+  if (state.showCreateModal) {
+    html += `
+      <div class="modal-overlay" onclick="if(event.target===this){state.showCreateModal=false;render()}">
+        <div class="modal-content">
+          <h3 class="text-base font-semibold text-[#E2E8F0] mb-4">创建课堂</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-[#94A3B8] mb-1 block">课堂主题</label>
+              <input id="create-topic" type="text" placeholder="如：智慧水产养殖系统设计" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+            <div>
+              <label class="text-xs text-[#94A3B8] mb-1 block">班级名称</label>
+              <input id="create-class" type="text" placeholder="如：23物联网1班" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+            <div>
+              <label class="text-xs text-[#94A3B8] mb-1 block">评价小组（逗号分隔）</label>
+              <input id="create-groups" type="text" value="第1小组,第2小组,第3小组,第4小组" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+            </div>
+          </div>
+          <div class="flex gap-3 mt-5">
+            <button onclick="state.showCreateModal=false;render()" class="flex-1 py-2 rounded-lg text-sm border border-[#1E2D45] text-[#94A3B8] hover:bg-[#1E2D45] transition-colors">取消</button>
+            <button onclick="createClassroom()" class="flex-1 py-2 rounded-lg text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors">创建</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Share Modal
+  if (state.showShareModal) {
+    const c = state.classrooms.find(cl => cl.id === state.shareClassroomId);
+    const shareUrl = c ? generateShareLink(c.id) : '';
+    html += `
+      <div class="modal-overlay" onclick="if(event.target===this){state.showShareModal=false;render()}">
+        <div class="modal-content">
+          <h3 class="text-base font-semibold text-[#E2E8F0] mb-4">分享课堂</h3>
+          <div class="mb-3">
+            <label class="text-xs text-[#94A3B8] mb-1 block">分享链接</label>
+            <div class="flex gap-2">
+              <input id="share-url-input" type="text" value="${escapeAttr(shareUrl)}" readonly class="flex-1 min-w-0 bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0]">
+              <button onclick="copyShareLink()" class="px-3 py-2 rounded-lg text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors">
+                <i data-lucide="copy" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p class="text-xs text-[#64748B] mt-2">链接已包含课堂数据，学生无需额外配置。学生打开后自动加载课堂数据。</p>
+          </div>
+          <p class="text-xs text-[#64748B]">学生打开链接后将自动从云端加载课堂数据</p>
+          <div class="mt-4">
+            <button onclick="state.showShareModal=false;render()" class="w-full py-2 rounded-lg text-sm border border-[#1E2D45] text-[#94A3B8] hover:bg-[#1E2D45] transition-colors">关闭</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Settings Modal
+  if (state.showSettingsModal) {
+    html += `
+      <div class="modal-overlay" onclick="if(event.target===this){state.showSettingsModal=false;render()}">
+        <div class="modal-content">
+          <h3 class="text-base font-semibold text-[#E2E8F0] mb-4">设置</h3>
+          <div class="mb-3">
+            <label class="text-xs text-[#94A3B8] mb-1 block">私人令牌（Gist Token）</label>
+            <input id="settings-token" type="text" value="${escapeHtml(state.gistToken || '')}" placeholder="输入你的 GitHub Gist Token" class="w-full bg-[#0B1120] border border-[#1E2D45] rounded-lg px-3 py-2 text-sm text-[#E2E8F0] placeholder-[#475569]">
+          </div>
+          <div class="flex gap-3 mt-5">
+            <button onclick="state.showSettingsModal=false;render()" class="flex-1 py-2 rounded-lg text-sm border border-[#1E2D45] text-[#94A3B8] hover:bg-[#1E2D45] transition-colors">取消</button>
+            <button onclick="saveSettings()" class="flex-1 py-2 rounded-lg text-sm bg-[#2563EB] text-white hover:bg-[#1d4ed8] transition-colors">保存并测试连接</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+// ==================== Chart Initialization ====================
+function initCharts() {
+  const classroom = state.currentClassroom;
+  if (!classroom) return;
+
+  const groupStats = getGroupStats(classroom);
+  const activeGroups = groupStats.filter(g => g.count > 0);
+
+  // Radar chart - evaluate page
+  const radarEval = document.getElementById('radar-chart-eval');
+  if (radarEval) {
+    const chart = echarts.init(radarEval, null, { renderer: 'svg' });
+    const avgScores = {};
+    DIMENSIONS.forEach(d => {
+      if (activeGroups.length > 0) {
+        avgScores[d.key] = activeGroups.reduce((s, g) => s + g.avgScores[d.key], 0) / activeGroups.length;
+      } else {
+        avgScores[d.key] = 0;
+      }
+    });
+    chart.setOption({
+      backgroundColor: 'transparent',
+      radar: {
+        indicator: DIMENSIONS.map(d => ({ name: d.desc, max: 100 })),
+        shape: 'circle',
+        splitNumber: 4,
+        axisName: { color: '#94A3B8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1E2D45' } },
+        splitArea: { areaStyle: { color: ['transparent', 'rgba(37,99,235,0.05)'] } },
+        axisLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      series: [{
+        type: 'radar',
+        data: [{
+          value: DIMENSIONS.map(d => avgScores[d.key]),
+          name: '班级平均',
+          areaStyle: { color: 'rgba(37,99,235,0.2)' },
+          lineStyle: { color: '#2563EB', width: 2 },
+          itemStyle: { color: '#2563EB' }
+        }]
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  }
+
+  // Bar chart - evaluate page
+  const barEval = document.getElementById('bar-chart-eval');
+  if (barEval) {
+    const chart = echarts.init(barEval, null, { renderer: 'svg' });
+    const groups = groupStats.map(g => g.group);
+    const scores = groupStats.map(g => g.avgTotal);
+    const colors = scores.map(s => getGradeInfo(s).color);
+    chart.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 60, right: 20, top: 20, bottom: 40 },
+      xAxis: {
+        type: 'category',
+        data: groups,
+        axisLabel: { color: '#94A3B8', fontSize: 10, rotate: groups.length > 6 ? 30 : 0 },
+        axisLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      yAxis: {
+        type: 'value',
+        max: 100,
+        axisLabel: { color: '#64748B', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      series: [{
+        type: 'bar',
+        data: scores.map((s, i) => ({
+          value: s,
+          itemStyle: { color: colors[i], borderRadius: [4, 4, 0, 0] }
+        })),
+        barWidth: '40%'
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  }
+
+  // Radar chart - dashboard
+  const radarDash = document.getElementById('radar-chart-dash');
+  if (radarDash) {
+    const chart = echarts.init(radarDash, null, { renderer: 'svg' });
+    const avgScores = {};
+    DIMENSIONS.forEach(d => {
+      if (activeGroups.length > 0) {
+        avgScores[d.key] = activeGroups.reduce((s, g) => s + g.avgScores[d.key], 0) / activeGroups.length;
+      } else {
+        avgScores[d.key] = 0;
+      }
+    });
+    chart.setOption({
+      backgroundColor: 'transparent',
+      radar: {
+        indicator: DIMENSIONS.map(d => ({ name: d.desc, max: 100 })),
+        shape: 'circle',
+        splitNumber: 4,
+        axisName: { color: '#94A3B8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1E2D45' } },
+        splitArea: { areaStyle: { color: ['transparent', 'rgba(37,99,235,0.05)'] } },
+        axisLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      series: [{
+        type: 'radar',
+        data: [{
+          value: DIMENSIONS.map(d => avgScores[d.key]),
+          name: '班级平均',
+          areaStyle: { color: 'rgba(37,99,235,0.2)' },
+          lineStyle: { color: '#2563EB', width: 2 },
+          itemStyle: { color: '#2563EB' }
+        }]
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  }
+
+  // Bar chart - dashboard
+  const barDash = document.getElementById('bar-chart-dash');
+  if (barDash) {
+    const chart = echarts.init(barDash, null, { renderer: 'svg' });
+    const groups = groupStats.map(g => g.group);
+    const scores = groupStats.map(g => g.avgTotal);
+    const colors = scores.map(s => getGradeInfo(s).color);
+    chart.setOption({
+      backgroundColor: 'transparent',
+      grid: { left: 60, right: 20, top: 20, bottom: 40 },
+      xAxis: {
+        type: 'category',
+        data: groups,
+        axisLabel: { color: '#94A3B8', fontSize: 10, rotate: groups.length > 6 ? 30 : 0 },
+        axisLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      yAxis: {
+        type: 'value',
+        max: 100,
+        axisLabel: { color: '#64748B', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#1E2D45' } }
+      },
+      series: [{
+        type: 'bar',
+        data: scores.map((s, i) => ({
+          value: s,
+          itemStyle: { color: colors[i], borderRadius: [4, 4, 0, 0] }
+        })),
+        barWidth: '40%'
+      }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+  }
+}
+
+// ==================== Actions ====================
+function selectGroup(groupName) {
+  state.selectedGroup = groupName;
+  render();
+}
+
+function selectScore(dimKey, score) {
+  state.scores[dimKey] = score;
+  render();
+}
+
+function updateCharCount() {
+  const el = document.getElementById('char-count');
+  if (el) {
+    const len = state.comment.trim().length;
+    el.textContent = len + '/10';
+    el.className = 'text-xs ' + (len >= 10 ? 'text-[#06D6A0]' : 'text-[#64748B]');
+  }
+}
+
+async function submitEvaluation() {
+  if (!state.currentClassroom || !state.selectedGroup) return;
+  const allScored = DIMENSIONS.every(d => state.scores[d.key] > 0);
+  if (!allScored || state.comment.trim().length < 10) return;
+
+  const evaluation = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+    fromStudent: state.studentInfo.name || '匿名',
+    fromGroup: state.studentInfo.groupName || '',
+    toGroup: state.selectedGroup,
+    scores: { ...state.scores },
+    comment: state.comment.trim(),
+    createdAt: Date.now()
+  };
+
+  // Save to classroom
+  const ci = state.classrooms.findIndex(c => c.id === state.currentClassroom.id);
+  if (ci >= 0) {
+    state.classrooms[ci].evaluations.push(evaluation);
+    state.currentClassroom = state.classrooms[ci];
+    saveState();
+  }
+
+  // 同步评价数据到云端
+  if (state.currentClassroom) {
+    await saveClassroomToCloud(state.currentClassroom);
+  }
+
+  // Generate analysis
+  state.analysisResult = generateAnalysis(state.scores, state.comment);
+  state.evaluateMode = 'analysis';
+
+  showNotification('评价提交成功！正在生成智能分析...');
+  render();
+}
+
+function continueEvaluate() {
+  state.evaluateMode = 'evaluate';
+  state.selectedGroup = '';
+  state.scores = { functionality: 0, performance: 0, experience: 0, innovation: 0 };
+  state.comment = '';
+  state.analysisResult = null;
+  render();
+}
+
+function openEvaluate(classroomId) {
+  const classroom = state.classrooms.find(c => c.id === classroomId);
+  if (!classroom) return;
+  state.currentClassroom = classroom;
+  state.evaluateMode = 'evaluate';
+  state.selectedGroup = '';
+  state.scores = { functionality: 0, performance: 0, experience: 0, innovation: 0 };
+  state.comment = '';
+  state.analysisResult = null;
+  navigate('#/evaluate');
+}
+
+function openDashboard(classroomId) {
+  const classroom = state.classrooms.find(c => c.id === classroomId);
+  if (!classroom) return;
+  state.currentClassroom = classroom;
+  navigate('#/dashboard');
+}
+
+function openCreateModal() {
+  state.showCreateModal = true;
+  render();
+}
+
+async function createClassroom() {
+  const topic = document.getElementById('create-topic')?.value?.trim();
+  const cls = document.getElementById('create-class')?.value?.trim();
+  const groupsStr = document.getElementById('create-groups')?.value?.trim();
+
+  if (!topic) { showNotification('请输入课堂主题', 'error'); return; }
+  if (!cls) { showNotification('请输入班级名称', 'error'); return; }
+
+  const groups = groupsStr ? groupsStr.split(/[,，]/).map(g => g.trim()).filter(g => g) : [];
+
+  const newClassroom = {
+    id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+    topicName: topic,
+    className: cls,
+    createdAt: Date.now(),
+    status: 'not-started',
+    evaluations: [],
+    groups: groups,
+    gistId: ''
+  };
+
+  state.classrooms.push(newClassroom);
+  state.showCreateModal = false;
+  saveState();
+
+  // 创建后立即同步到云端
+  await saveClassroomToCloud(newClassroom);
+  state.cloudMode = isCloudMode();
+
+  showNotification('课堂创建成功！');
+  render();
+}
+
+async function startClassroom(id) {
+  const ci = state.classrooms.findIndex(c => c.id === id);
+  if (ci >= 0) {
+    state.classrooms[ci].status = 'ongoing';
+    saveState();
+    await saveClassroomToCloud(state.classrooms[ci]);
+    showNotification('评价已开始，学生可以进入评分');
+    render();
+  }
+}
+
+async function endClassroom(id) {
+  const ci = state.classrooms.findIndex(c => c.id === id);
+  if (ci >= 0) {
+    state.classrooms[ci].status = 'ended';
+    saveState();
+    await saveClassroomToCloud(state.classrooms[ci]);
+    showNotification('评价已结束');
+    render();
+  }
+}
+
+async function deleteClassroom(id) {
+  if (!confirm('确定要删除这个课堂吗？所有评价数据将被清除。')) return;
+
+  // 删除云端 Gist
+  const classroom = state.classrooms.find(c => c.id === id);
+  const gistId = getGistId(id) || (classroom && classroom.gistId);
+  if (gistId) {
+    try { await deleteGist(gistId); } catch(e) { console.error('Delete gist failed:', e); }
+    const map = getGistMap();
+    delete map[id];
+    saveGistMap(map);
+  }
+
+  state.classrooms = state.classrooms.filter(c => c.id !== id);
+  saveState();
+  showNotification('课堂已删除');
+  render();
+}
+
+function openShareModal(id) {
+  state.shareClassroomId = id;
+  state.showShareModal = true;
+  render();
+}
+
+function copyShareLink() {
+  const input = document.getElementById('share-url-input');
+  if (input) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      showNotification('链接已复制到剪贴板');
+    }).catch(() => {
+      input.select();
+      document.execCommand('copy');
+      showNotification('链接已复制');
+    });
+  }
+}
+
+function openSettingsModal() {
+  state.showSettingsModal = true;
+  render();
+}
+
+async function saveSettings() {
+  const tokenEl = document.getElementById('settings-token');
+  if (tokenEl) state.gistToken = tokenEl.value.trim();
+  cloudToken = state.gistToken || DEFAULT_TOKEN;
+  saveState();
+
+  // 测试连接
+  state.loading = true;
+  state.showSettingsModal = false;
+  render();
+
+  await refreshCloud();
+  state.cloudMode = isCloudMode();
+  state.loading = false;
+
+  if (state.cloudMode) {
+    showNotification('云端连接成功！Gitee 同步已开启');
+    // 重新加载课堂
+    await reloadClassrooms();
+  } else {
+    showNotification('连接失败，请检查令牌是否正确', 'error');
+  }
+  render();
+}
+
+function exportClassroom(id) {
+  const classroom = state.classrooms.find(c => c.id === id);
+  if (!classroom) return;
+  const data = JSON.stringify({ classrooms: [classroom], studentInfo: state.studentInfo }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${classroom.topicName}_评价数据.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showNotification('导出成功！');
+}
+
+function importClassroom() {
+  const input = document.getElementById('import-file-input');
+  if (input) input.click();
+}
+
+function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.classrooms && Array.isArray(data.classrooms)) {
+        data.classrooms.forEach(c => {
+          if (!state.classrooms.find(ec => ec.id === c.id)) {
+            state.classrooms.push(c);
+          }
+        });
+        if (data.studentInfo) {
+          Object.assign(state.studentInfo, data.studentInfo);
+        }
+        saveState();
+        showNotification(`成功导入 ${data.classrooms.length} 个课堂`);
+        render();
+      } else {
+        showNotification('无效的数据格式', 'error');
+      }
+    } catch(err) {
+      showNotification('文件解析失败', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ==================== Utilities ====================
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeAttr(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ==================== Share & URL ====================
+const PUBLIC_BASE_URL = ''; // 部署后填入公网地址，如 'https://username.gitee.io/smart-eval'
+
+function generateShareLink(classroomId) {
+  const classroom = state.classrooms.find(c => c.id === classroomId);
+  if (!classroom) return '';
+  const gistId = getGistId(classroomId) || classroom.gistId;
+  if (!gistId) return '';
+  
+  // 优先使用公网 URL，否则使用当前页面 URL
+  const baseUrl = PUBLIC_BASE_URL || (window.location.origin + window.location.pathname.replace(/index\.html$/, ''));
+  const params = new URLSearchParams();
+  params.set('g', gistId);
+  // 默认令牌时省略 k 参数以缩短链接
+  if (state.gistToken && state.gistToken !== DEFAULT_TOKEN) {
+    params.set('k', state.gistToken);
+  }
+  return `${baseUrl}#?${params.toString()}`;
+}
+
+// 解析 URL 参数（分享链接）
+async function handleUrlParams() {
+  const hash = window.location.hash;
+  const queryStr = hash.includes('?') ? hash.split('?')[1] : '';
+  const params = new URLSearchParams(queryStr);
+  const gistId = params.get('g');
+  const token = params.get('k');
+
+  if (gistId || token) {
+    if (token) {
+      state.gistToken = token;
+      cloudToken = token;
+      await refreshCloud();
+      state.cloudMode = isCloudMode();
+    }
+
+    if (gistId) {
+      state.loading = true;
+      render();
+      const classroom = await getClassroomByGistId(gistId);
+      state.loading = false;
+      if (classroom) {
+        // 导入课堂到本地列表
+        const exists = state.classrooms.find(c => c.id === classroom.id);
+        if (!exists) {
+          state.classrooms.push(classroom);
+          saveState();
+        }
+        state.currentClassroom = classroom;
+        showNotification(`课堂「${classroom.topicName}」已导入！请点击「学生入口」进行评价`);
+      } else {
+        showNotification('无法加载课堂数据，请检查链接是否完整', 'error');
+      }
+      // 清除 URL 参数
+      window.history.replaceState({}, '', window.location.pathname + '#/home');
+    }
+  }
+}
+
+// 刷新课堂列表（从云端重新加载）
+async function reloadClassrooms() {
+  state.loading = true;
+  render();
+  await refreshCloud();
+  state.cloudMode = isCloudMode();
+  if (state.cloudMode) {
+    const cloudClassrooms = await loadAllClassroomsFromCloud();
+    // 合并云端数据（不覆盖本地已有的评价）
+    for (const cloud of Object.values(cloudClassrooms)) {
+      const existing = state.classrooms.find(c => c.id === cloud.id);
+      if (!existing) {
+        state.classrooms.push(cloud);
+      } else {
+        // 合并评价数据：取并集
+        const existingEvalIds = new Set((existing.evaluations || []).map(e => e.id));
+        for (const ev of (cloud.evaluations || [])) {
+          if (!existingEvalIds.has(ev.id)) {
+            existing.evaluations.push(ev);
+          }
+        }
+        existing.gistId = cloud.gistId || existing.gistId;
+        existing.status = cloud.status || existing.status;
+      }
+    }
+    saveState();
+  }
+  state.loading = false;
+  render();
+}
+
+// ==================== Init ====================
+(async function init() {
+  await loadState();
+  await handleUrlParams();
+  render();
+
+  // 监听 hash 变化
+  window.addEventListener('hashchange', () => { render(); });
+})();
+</script>
+</body>
+</html>
